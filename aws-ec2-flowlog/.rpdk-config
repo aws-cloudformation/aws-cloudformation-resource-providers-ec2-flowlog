@@ -1,0 +1,15 @@
+{
+    "typeName": "AWS::EC2::FlowLog",
+    "language": "java",
+    "runtime": "java8",
+    "entrypoint": "software.amazon.ec2.flowlog.HandlerWrapper::handleRequest",
+    "testEntrypoint": "software.amazon.ec2.flowlog.HandlerWrapper::testEntrypoint",
+    "settings": {
+        "namespace": [
+            "software",
+            "amazon",
+            "ec2",
+            "flowlog"
+        ]
+    }
+}
