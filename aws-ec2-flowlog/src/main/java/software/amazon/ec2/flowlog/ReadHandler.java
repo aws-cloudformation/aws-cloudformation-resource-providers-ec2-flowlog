@@ -1,5 +1,6 @@
 package software.amazon.ec2.flowlog;
 
+import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeFlowLogsRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeFlowLogsResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
@@ -8,15 +9,16 @@ import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
+import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
-public class ReadHandler extends BaseHandler<CallbackContext> {
+public class ReadHandler extends BaseHandlerStd {
 
-    @Override
-    public ProgressEvent<ResourceModel, CallbackContext> handleRequest(
+    protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
         final CallbackContext callbackContext,
+        final ProxyClient<Ec2Client> proxyClient,
         final Logger logger) {
         final ResourceModel model = request.getDesiredResourceState();
 
@@ -25,7 +27,7 @@ public class ReadHandler extends BaseHandler<CallbackContext> {
                 .flowLogIds(model.getId())
                 .build();
             final DescribeFlowLogsResponse describeFlowLogsResponse = proxy.injectCredentialsAndInvokeV2(describeFlowLogsRequest,
-                ClientBuilder.getClient()::describeFlowLogs);
+                    proxyClient.client()::describeFlowLogs);
 
             if (describeFlowLogsResponse.flowLogs() == null || describeFlowLogsResponse.flowLogs().isEmpty()) {
                 throw new CfnNotFoundException(ResourceModel.TYPE_NAME, model.getId());

@@ -12,12 +12,14 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeFlowLogsResponse;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
+import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,12 +29,17 @@ public class ListHandlerTest extends TestBase {
     private AmazonWebServicesClientProxy proxy;
 
     @Mock
+    private ProxyClient<Ec2Client> proxyClient;
+
+    @Mock
+    private Ec2Client ec2Client;
+
+    @Mock
     private Logger logger;
 
     @BeforeEach
     public void setup() {
-        proxy = mock(AmazonWebServicesClientProxy.class);
-        logger = mock(Logger.class);
+        doReturn(ec2Client).when(proxyClient).client();
     }
 
     @Test
@@ -54,7 +61,7 @@ public class ListHandlerTest extends TestBase {
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
@@ -86,7 +93,7 @@ public class ListHandlerTest extends TestBase {
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
@@ -113,7 +120,7 @@ public class ListHandlerTest extends TestBase {
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
