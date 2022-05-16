@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Collections;
 
+import jdk.nashorn.internal.ir.annotations.Ignore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DeleteFlowLogsResponse;
 import software.amazon.awssdk.services.ec2.model.UnsuccessfulItem;
 import software.amazon.awssdk.services.ec2.model.UnsuccessfulItemError;
@@ -22,6 +24,7 @@ import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
+import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,12 +34,17 @@ public class DeleteHandlerTest extends TestBase {
     private AmazonWebServicesClientProxy proxy;
 
     @Mock
+    private ProxyClient<Ec2Client> proxyClient;
+
+    @Mock
+    private Ec2Client ec2Client;
+
+    @Mock
     private Logger logger;
 
     @BeforeEach
     public void setup() {
-        proxy = mock(AmazonWebServicesClientProxy.class);
-        logger = mock(Logger.class);
+        doReturn(ec2Client).when(proxyClient).client();
     }
 
     @Test
@@ -58,7 +66,7 @@ public class DeleteHandlerTest extends TestBase {
             .desiredResourceState(ResourceModel.builder().build())
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
@@ -95,7 +103,7 @@ public class DeleteHandlerTest extends TestBase {
             .desiredResourceState(ResourceModel.builder().build())
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
@@ -123,7 +131,7 @@ public class DeleteHandlerTest extends TestBase {
             .desiredResourceState(ResourceModel.builder().build())
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);

@@ -3,6 +3,7 @@ package software.amazon.ec2.flowlog;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeFlowLogsRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeFlowLogsResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
@@ -10,21 +11,22 @@ import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
+import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
-public class ListHandler extends BaseHandler<CallbackContext> {
+public class ListHandler extends BaseHandlerStd {
 
-    @Override
     public ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
         final CallbackContext callbackContext,
+        final ProxyClient<Ec2Client> proxyClient,
         final Logger logger) {
 
         try {
             final DescribeFlowLogsResponse describeFlowLogsResponse =
                 proxy.injectCredentialsAndInvokeV2(createListRequest(request.getNextToken()),
-                    ClientBuilder.getClient()::describeFlowLogs);
+                        proxyClient.client()::describeFlowLogs);
 
             logger.log(String.format("%n %s listed successfully",
                     describeFlowLogsResponse.flowLogs().size(), ResourceModel.TYPE_NAME));
