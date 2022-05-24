@@ -5,16 +5,26 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.CreateFlowLogsRequest;
 import software.amazon.awssdk.services.ec2.model.CreateFlowLogsResponse;
+import software.amazon.awssdk.services.ec2.model.DescribeFlowLogsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeFlowLogsResponse;
 import software.amazon.awssdk.services.ec2.model.UnsuccessfulItem;
 import software.amazon.awssdk.services.ec2.model.UnsuccessfulItemError;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
@@ -22,6 +32,7 @@ import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
+import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,12 +42,17 @@ public class CreateHandlerTest extends TestBase {
     private AmazonWebServicesClientProxy proxy;
 
     @Mock
+    private ProxyClient<Ec2Client> proxyClient;
+
+    @Mock
+    private Ec2Client ec2Client;
+
+    @Mock
     private Logger logger;
 
     @BeforeEach
     public void setup() {
-        proxy = mock(AmazonWebServicesClientProxy.class);
-        logger = mock(Logger.class);
+        doReturn(ec2Client).when(proxyClient).client();
     }
 
     @Test
@@ -45,28 +61,55 @@ public class CreateHandlerTest extends TestBase {
 
         final CreateFlowLogsResponse createFlowLogsResponse = CreateFlowLogsResponse.builder()
             .unsuccessful(Collections.emptyList())
-            .flowLogIds("fl-0")
+            .flowLogIds(TEST_FLOW_LOG_TO_S3.flowLogId())
             .build();
 
         doReturn(createFlowLogsResponse)
             .when(proxy)
             .injectCredentialsAndInvokeV2(
-                ArgumentMatchers.any(),
+                ArgumentMatchers.any(CreateFlowLogsRequest.class),
                 ArgumentMatchers.any()
             );
 
-        final ResourceModel model = ResourceModel.builder().build();
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(model)
+        final DescribeFlowLogsResponse describeFlowLogsResponse = DescribeFlowLogsResponse.builder()
+            .flowLogs(TEST_FLOW_LOG_TO_S3)
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        doReturn(describeFlowLogsResponse)
+            .when(proxy)
+            .injectCredentialsAndInvokeV2(
+                ArgumentMatchers.any(DescribeFlowLogsRequest.class),
+                ArgumentMatchers.any()
+            );
+
+        final Map<String, String> desiredResourceTags = new HashMap<String, String>() {{
+            put("stack-name", "test-stack");
+        }};
+        final List<software.amazon.awssdk.services.ec2.model.Tag> desiredSdkTags = Arrays.asList(
+            software.amazon.awssdk.services.ec2.model.Tag.builder()
+                .key("stack-name")
+                .value("test-stack")
+                .build()
+        );
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+            .desiredResourceState(Translator.createModelFromFlowLog(TEST_FLOW_LOG_TO_S3))
+            .desiredResourceTags(desiredResourceTags)
+            .build();
+
+        final ArgumentCaptor<CreateFlowLogsRequest> requestCaptor = ArgumentCaptor.forClass(CreateFlowLogsRequest.class);
+
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
+
+        Mockito.verify(proxy, Mockito.atLeastOnce()).injectCredentialsAndInvokeV2(requestCaptor.capture(), ArgumentMatchers.any());
+        final CreateFlowLogsRequest capturedRequest = requestCaptor.getAllValues().get(0);
+        assertThat(capturedRequest.tagSpecifications().get(0).tags()).isEqualTo(desiredSdkTags);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
         assertThat(response.getCallbackContext()).isNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
-        assertThat(response.getResourceModel()).isEqualTo(model);
+        assertThat(response.getResourceModel()).isEqualTo(Translator.createModelFromFlowLog(TEST_FLOW_LOG_TO_S3));
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
@@ -97,7 +140,7 @@ public class CreateHandlerTest extends TestBase {
             .desiredResourceState(ResourceModel.builder().build())
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
@@ -130,7 +173,7 @@ public class CreateHandlerTest extends TestBase {
             .desiredResourceState(ResourceModel.builder().build())
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
@@ -158,7 +201,7 @@ public class CreateHandlerTest extends TestBase {
             .desiredResourceState(ResourceModel.builder().build())
             .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, null, proxyClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
