@@ -63,7 +63,9 @@
       "enum": [
         "NetworkInterface",
         "Subnet",
-        "VPC"
+        "VPC",
+        "TransitGateway",
+        "TransitGatewayAttachment"
       ]
     },
     "Tags": {
